@@ -53,7 +53,7 @@ use Digest::SHA1 'sha1';
 			["Bad $w[8]","Unauthorized","Payment $w[9]","Forbidden","Not $w[4]","Method Not Allowed","Not Acceptable","$w[7] Authentication $w[9]","$w[8] $w[10]","Conflict","Gone","Length $w[9]","Precondition $w[3]","$w[8] $w[1] Too $w[6]","$w[8]-URI Too $w[6]","Unsupported Media Type","$w[8] Range Not Satisfiable","Expectation $w[3]",(0)x4,"Unprocessable $w[1]","Locked","$w[3] Dependency","No code","Upgrade $w[9]",(0)x22,"Retry with",],
 			["Internal Server $w[2]","Not Implemented","Bad $w[5]","Service Unavailable","$w[5] $w[10]","HTTP Version Not Supported","Variant Also Negotiates","Insufficient Storage",0,"Bandwidth Limit Exceeded","Not Extended",(0)x88,"Client $w[2]",],
 	};
-		
+
 		use constant {
 			METHOD    => 0,
 			URI       => 1,
@@ -69,9 +69,9 @@ use Digest::SHA1 'sha1';
 			HANDLE    => 11,
 			ATTRS     => 12,
 		};
-		
+
 		sub connection { $_[0][2]{connection} =~ /^([^;]+)/ && lc( $1 ) }
-		
+
 		sub method  { $_[0][0] }
 		sub full_uri { 'http://' . $_[0][2]{host} . $_[0][1] }
 		sub uri     { $_[0][1] }
@@ -88,7 +88,7 @@ use Digest::SHA1 'sha1';
 				$r->attrs->{replied};
 			}
 		}
-		
+
 		sub url_unescape($) {
 			# return undef unless defined $_[0];
 			my $string = shift;
@@ -98,7 +98,7 @@ use Digest::SHA1 'sha1';
 			utf8::decode $string;
 			return $string;
 		}
-		
+
 		sub form {
 			my %h;
 			while ( $_[1] =~ m{ \G ([^=]+) = ([^&]*) ( & | \Z ) }gcxso ) {
@@ -117,7 +117,7 @@ use Digest::SHA1 'sha1';
 			}
 			return \%h;
 		}
-		
+
 		sub uri_parse {
 			$_[0][5] = [
 				$_[0][1] =~ m{ ^
@@ -135,23 +135,23 @@ use Digest::SHA1 'sha1';
 			# $_[0][5][2] = url_unescape( $_[0][5][2] );
 			$_[0][6] = +{ map { my ($k,$v) = split /=/,$_,2; +( url_unescape($k) => url_unescape($v) ) } split /&/, $_[0][5][3] };
 		}
-		
-		
+
+
 		sub path    {
 			$_[0][5] or $_[0]->uri_parse;
 			$_[0][5][2];
 		}
-		
+
 		sub query    {
 			$_[0][5] or $_[0]->uri_parse;
 			$_[0][5][3];
 		}
-		
+
 		sub params {
 			$_[0][6] or $_[0]->uri_parse;
 			$_[0][6];
 		}
-		
+
 		sub param {
 			$_[0][6] or $_[0]->uri_parse;
 			if ($_[1]) {
@@ -161,7 +161,7 @@ use Digest::SHA1 'sha1';
 			}
 		}
 		our $CALLDEPTH = 1;
-		
+
 		sub replyjs {
 			my $self = shift;
 			#warn "Replyjs: @_ by @{[ (caller)[1,2] ]}";
@@ -201,9 +201,9 @@ use Digest::SHA1 'sha1';
 			$jdata = "$callback_name( $jdata );" if $callback_name;
 			local $CALLDEPTH = $CALLDEPTH + 1;
 			$self->reply( $code, $jdata, %args );
-			
+
 		}
-		
+
 		sub sendfile {
 			my $self = shift;
 			my ( $code,$file,%args ) = @_;
@@ -219,7 +219,7 @@ use Digest::SHA1 'sha1';
 			my $reply = "HTTP/1.0 $code $http{$code}$LF";
 			my $size = -s $file or $! and return warn "Can't sendfile `$file': $!";
 			open my $f, '<:raw',$file or return  warn "Can't open file `$file': $!";
-			
+
 			my @good;my @bad;
 			my $h = {
 				server           => 'aehts-'.$AnyEvent::HTTP::Server::VERSION,
@@ -250,11 +250,11 @@ use Digest::SHA1 'sha1';
 					$self->[3]->( \$buf );
 				}
 				$self->[3]->( \undef ) if $h->{connection} eq 'close' or $self->[SERVER]{graceful};
-				delete $self->[3];
 				${ $self->[REQCOUNT] }--;
+				delete $self->[3];
 			}
 		}
-		
+
 		sub go {
 			my $self = shift;
 			my $location = shift;
@@ -263,7 +263,7 @@ use Digest::SHA1 'sha1';
 			local $CALLDEPTH = $CALLDEPTH + 1;
 			$self->reply( 302, "Moved", %args );
 		}
-		
+
 		sub reply {
 			my $self = shift;
 			#return $self->headers(@_) if @_ % 2;
@@ -276,7 +276,7 @@ use Digest::SHA1 'sha1';
 			#	else {
 			#		croak "Unknown type of content: $content";
 			#	}
-			#	
+			#
 			#} else {
 				utf8::encode $content if utf8::is_utf8 $content;
 			#}
@@ -331,9 +331,9 @@ use Digest::SHA1 'sha1';
 			#if (!ref $content) { $reply .= $content }
 			if( $self->[3] ) {
 				$self->[3]->( \$reply );
+				${ $self->[REQCOUNT] }--;
 				$self->[3]->( \undef ) if $h->{connection} eq 'close' or $self->[SERVER]{graceful};
 				delete $self->[3];
-				${ $self->[REQCOUNT] }--;
 			}
 			if( $self->[8] && $self->[8]->{on_reply} ) {
 				$h->{ResponseTime} = gettimeofday() - $self->[9];
@@ -364,17 +364,17 @@ use Digest::SHA1 'sha1';
 				}
 			};
 		}
-		
+
 		sub is_websocket {
 			my $self = shift;
 			return 1 if lc($self->headers->{connection}) eq 'upgrade' and lc( $self->headers->{upgrade} ) eq 'websocket';
 			return 0;
 		}
-		
+
 		sub upgrade {
 			my $self = shift;
 			#my %h;$h{h} = \%h; $h{r} = $self;
-			
+
 			my $cb = pop;
 			my %args = @_;
 			if ( $self->headers->{'sec-websocket-version'} == 13 ) {
@@ -389,9 +389,9 @@ use Digest::SHA1 'sha1';
 					'sec-websocket-accept' => $accept,
 					#'sec-websocket-protocol' => 'chat',
 				} );
-				
+
 				${ $self->[REQCOUNT] }--;
-				
+
 				my $create_ws = sub {
 					my $h = shift;
 					my $ws = AnyEvent::HTTP::Server::WS->new(
@@ -401,7 +401,7 @@ use Digest::SHA1 'sha1';
 					@$self = ();
 					$cb->($ws);
 				};
-				
+
 				if ( $self->[HANDLE] ) {
 					$create_ws->($self->[HANDLE]);
 					return
@@ -416,7 +416,7 @@ use Digest::SHA1 'sha1';
 				});
 			}
 		}
-		
+
 		sub send_100_continue {
 			my ($self,$code,%args) = @_;
 			my $reply = "HTTP/1.1 100 $http{100}$LF$LF";
@@ -466,7 +466,7 @@ use Digest::SHA1 'sha1';
 				}
 			}
 		}
-		
+
 		sub body {
 			my $self = shift;
 			$self->[4] or die "Need to be chunked reply";
@@ -477,13 +477,17 @@ use Digest::SHA1 'sha1';
 			#warn "send body part $length / ".length($content)."\n";
 			$self->[3]->( \("$length$LF$content$LF") );
 		}
-		
+
 		sub finish {
 			my $self = shift;
+			my $req_count_decremented;
 			if ($self->[4]) {
 				#warn "send body end (".$self->connection.")\n";
 				if( $self->[3] ) {
 					$self->[3]->( \("0$LF$LF")  );
+					${ $self->[REQCOUNT] }--;
+					$req_count_decremented = 1;
+
 					$self->[3]->(\undef) if $self->connection eq 'close' or $self->[SERVER]{graceful};
 					delete $self->[3];
 				}
@@ -495,7 +499,8 @@ use Digest::SHA1 'sha1';
 			else {
 				die "Need to be chunked reply";
 			}
-			${ $self->[REQCOUNT] }--;
+			${ $self->[REQCOUNT] }-- unless $req_count_decremented;
+
 			if ( $self->attrs->{sent_headers} ) {
 				my $h = delete $self->attrs->{sent_headers};
 				if( $self->[8] && $self->[8]->{on_reply} ) {
@@ -510,9 +515,15 @@ use Digest::SHA1 'sha1';
 
 		sub abort {
 			my $self = shift;
+			my $req_count_decremented;
+
 			if( $self->[4] ) {
 				if( $self->[3] ) {
 					$self->[3]->( \("1$LF"));
+
+					${ $self->[REQCOUNT] }--;
+					$req_count_decremented = 1;
+
 					$self->[3]->( \undef);
 					delete $self->[3];
 				}
@@ -524,7 +535,8 @@ use Digest::SHA1 'sha1';
 			else {
 				die "Need to be chunked reply";
 			}
-			${ $self->[REQCOUNT] }--;
+			${ $self->[REQCOUNT] }-- unless $req_count_decremented;
+
 			if ( $self->attrs->{sent_headers} ) {
 				my $h = delete $self->attrs->{sent_headers};
 				if( $self->[8] && $self->[8]->{on_reply} ) {
@@ -538,7 +550,7 @@ use Digest::SHA1 'sha1';
 				};
 			}
 		}
-		
+
 		sub DESTROY {
 			my $self = shift;
 			my $caller = "@{[ (caller)[1,2] ]}";
@@ -632,52 +644,52 @@ __END__
   Parameters:
 
 =head3 status
-    
+
     HTTP Status header (200 is OK, 403 is Auth required and so on).
 
 =head3 content
-    
+
     Response body as a scalar.
 
 =head3 headers
-    
+
     Response headers as a hash reference.
 
 =head2 replyjs( [code], $data, %arguments ) - Send reply in JSON format
 
 =head3 code
-    
+
     Optional Status code, 200 is default.
 
 =head3 data
-    
+
     Response data to encode with JSON. All strings will be encoded as  UTF-8.
 
 =head3 arguments
-    
+
     List of key=> value arguments. The only supported argument for a moment is
-    pretty => 1 | 0. JSON data will be formated for easier reading by human, 
+    pretty => 1 | 0. JSON data will be formated for easier reading by human,
     if pretty is true.
 
 =head2 send_headers($code, @argumnets_list )  - send response headers to client
 
     This method may be used in conjunction with body() and finish() methods
-    for streaming content serving. Response header 'transfer-encoding' is set 
+    for streaming content serving. Response header 'transfer-encoding' is set
     to 'chunked' by this method.
 
 =head3 code
-    
+
     HTTP Status code to send to a client.
 
 =head3 arguments_list
-    
+
     The rest of arguments is interpreted as a key=>value list. One should pass
     headers key, for example
 
     $request->send_headers(200, headers => { 'Content-type' => 'text/plain'} );
 
-    Subsequent data should be send with body method, and after all data sent, finish 
-    request handling with finish() method. Methods send_headers, body and finish 
+    Subsequent data should be send with body method, and after all data sent, finish
+    request handling with finish() method. Methods send_headers, body and finish
     should be always used together.
 
 =head2 body($data )  - send chunk of data to client
@@ -692,7 +704,7 @@ __END__
 
   Let client know if an error occured by dropping connection before sending complete data
 
-  KNOWN ISSUES: nginx, when used as a reverse proxy, masks connection abort, leaving no 
+  KNOWN ISSUES: nginx, when used as a reverse proxy, masks connection abort, leaving no
   ability for browser to detect error condition.
 
 =cut

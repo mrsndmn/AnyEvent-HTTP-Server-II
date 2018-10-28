@@ -68,7 +68,7 @@ sub new {
 		active_requests => 0,
 		total_requests => 0,
 	}, $pkg;
-	
+
 	if (exists $self->{listen}) {
 		$self->{listen} = [ $self->{listen} ] unless ref $self->{listen};
 		my %dup;
@@ -89,14 +89,14 @@ sub new {
 
 	$self->can("handle_request")
 		and croak "It's a new version of ".__PACKAGE__.". For old version use `legacy' branch, or better make some minor patches to support new version";
-	
+
 	$self->set_favicon( exists $self->{favicon} ? do {
 		open my $f, '<:raw', $self->{favicon} or die "Can't open favicon: $!";
 		local $/;
 		<$f>;
 	} : $ico ) if !exists $self->{favicon} or $self->{favicon};
 	$self->{request} = 'AnyEvent::HTTP::Server::Req';
-	
+
 	return $self;
 }
 
@@ -113,29 +113,29 @@ sub set_favicon {
 
 sub listen:method {
 	my $self = shift;
-	
+
 	for my $listen (@{ $self->{listen} }) {
 		my ($host,$service) = split ':',$listen,2;
 		$service = $self->{port} unless length $service;
 		$host = $self->{host} unless length $host;
 		$host = $AnyEvent::PROTOCOL{ipv4} < $AnyEvent::PROTOCOL{ipv6} && AF_INET6 ? "::" : "0" unless length $host;
-		
+
 		my $ipn = parse_address $host
 			or Carp::croak "$self.listen: cannot parse '$host' as host address";
-		
+
 		my $af = address_family $ipn;
-		
+
 		# win32 perl is too stupid to get this right :/
 		Carp::croak "listen/socket: address family not supported"
 			if AnyEvent::WIN32 && $af == AF_UNIX;
-		
+
 		socket my $fh, $af, SOCK_STREAM, 0 or Carp::croak "listen/socket: $!";
-		
+
 		if ($af == AF_INET || $af == AF_INET6) {
 			setsockopt $fh, SOL_SOCKET, SO_REUSEADDR, 1
 				or Carp::croak "listen/so_reuseaddr: $!"
 					unless AnyEvent::WIN32; # work around windows bug
-			
+
 			unless ($service =~ /^\d*$/) {
 				$service = (getservbyname $service, "tcp")[2]
 					or Carp::croak "tcp_listen: $service: service unknown"
@@ -143,28 +143,28 @@ sub listen:method {
 		} elsif ($af == AF_UNIX) {
 			unlink $service;
 		}
-		
+
 		bind $fh, AnyEvent::Socket::pack_sockaddr( $service, $ipn )
 			or Carp::croak "listen/bind on ".eval{Socket::inet_ntoa($ipn)}.":$service: $!";
-		
+
 		if ($host eq 'unix/') {
 			chmod oct('0777'), $service
 				or warn "chmod $service failed: $!";
 		}
-		
+
 		fh_nonblocking $fh, 1;
-	
+
 		$self->{fh} ||= $fh; # compat
 		$self->{fhs}{fileno $fh} = $fh;
 	}
-	
+
 	$self->prepare();
-	
+
 	for ( values  %{ $self->{fhs} } ) {
 		listen $_, $self->{backlog}
 			or Carp::croak "listen/listen on ".(fileno $_).": $!";
 	}
-	
+
 	return wantarray ? do {
 		my ($service, $host) = AnyEvent::Socket::unpack_sockaddr( getsockname $self->{fh} );
 		(format_address $host, $service);
@@ -213,9 +213,9 @@ sub drop {
 	my $r = delete $self->{$id};
 	$self->{active_connections}--;
 	%{ $r } = () if $r;
-	
+
 	( delete $self->{graceful} )->()
-		if $self->{graceful} and $self->{active_requests} == 0;
+		if $self->{graceful} and $self->{active_connections} == 0;
 }
 
 sub req_wbuf_len {
@@ -244,17 +244,17 @@ sub incoming {
 		my ($fh,$rhost,$rport) = @_;
 		my $id = ++$self->{seq}; #refaddr $fh;
 
-		
+
 		my %r = ( fh => $fh, id => $id );
 		my $buf;
-		
+
 		$self->{ $id } = \%r;
 		$self->{active_connections}++;
 
 	warn sprintf("Accepted connection $id (fd:%s) from %s ($self->{active_connections}/$self->{total_connections}; $self->{active_requests}/$self->{total_requests})\n", fileno($_[0]),
 		$self->{want_peer} ? "$_[1]:$_[2]" : peer_info($_[0])
 	) if $self->{debug_conn};
-		
+
 		my $write = sub {
 			$self and exists $self->{$id} or return;
 			use Data::Dumper;
@@ -266,7 +266,7 @@ sub incoming {
 					return;
 				}
 				elsif ( !defined $$buf ) { return $self->drop($id); }
-				
+
 				$self->{$id}{fh} or return do {
 					warn "Lost filehandle while trying to send ".length($$buf)." data for $id";
 					$self->drop($id,"No filehandle");
@@ -298,10 +298,10 @@ sub incoming {
 				else { return $self->drop($id, "$!"); }
 			}
 		};
-		
+
 		my ($state,$seq) = (0,0);
 		my ($method,$uri,$version,$lastkey,$contstate,$bpos,$len,$pos, $req);
-		
+
 		my $ixx = 0;
 		$r{rw} = AE::io $fh, 0, sub {
 			# warn "rw.io.$id (".(fileno $fh).") seq:$seq (ok:".($self ? 1:0).':'.(( $self && exists $self->{$id}) ? 1 : 0).")";# if DEBUG;
@@ -393,24 +393,24 @@ sub incoming {
 								}
 								else {
 									my ($line) = $buf =~ /\G([^\015\012]++)(?:\015?\012|\Z)/sxogc;
-									$self->{active_requests}--;
 									$self->badconn($fh,\$line, "Bad header for <$method $uri>+{@{[ %h ]}}");
 									my $content = 'Bad request headers';
 									my $str = "HTTP/1.1 400 Bad Request${LF}Connection:close${LF}Content-Type:text/plain${LF}Content-Length:".length($content)."${LF}${LF}".$content;
 									$write->(\$str);
+									$self->{active_requests}--;
 									$write->(\undef);
 									return;
 								}
 							}
-							
+
 							#warn Dumper \%h;
 							$pos = pos($buf);
-							
+
 							$self->{total_requests}++;
 
 							if ( $method eq "GET" and $uri =~ m{^/favicon\.ico( \Z | \? )}sox and $self->{ico}) {
-								$self->{active_requests}--;
 								$write->(\$self->{ico});
+								$self->{active_requests}--;
 								$write->(\undef) if lc $h{connecton} =~ /^close\b/;
 								$ixx = $pos + $h{'content-length'};
 							# } elsif ( $method eq "GET" and $uri =~ m{^/ping( \Z | \? )}sox) {
@@ -449,7 +449,7 @@ sub incoming {
 												)
 											$}xsio and exists $rv[0]{multipart}
 										) {
-										
+
 											my $bnd = '--'.( defined $1 ? do { my $x = $1; $x =~ s{\\(.)}{$1}gs; $x } : $2 );
 											my $body = '';
 											#warn "reading multipart with boundary '$bnd'";
@@ -482,7 +482,7 @@ sub incoming {
 													#warn "next part idx: $idx";
 													length $part or next;
 													#warn "Process part '$part'";
-													
+
 													my %hd;
 													my $lk;
 													while() {
@@ -602,7 +602,7 @@ sub incoming {
 								}
 							}
 							weaken($req);
-							
+
 							if( $len = $h{'content-length'} ) {
 								#warn "have clen";
 								if ( length($buf) - $pos == $len ) {
@@ -677,7 +677,7 @@ sub incoming {
 					}
 				}
 				#state 3: discard body
-				
+
 				#$r{_activity} = $r{_ractivity} = AE::now;
 				#$write->(\("HTTP/1.1 200 OK\r\nContent-Length:10\r\n\r\nTestTest1\n"),\undef);
 			} # while read
@@ -717,7 +717,7 @@ sub graceful {
 	my $cb = pop;
 	delete $self->{aws};
 	close $_ for values %{ $self->{fhs} };
-	if ($self->{active_requests} == 0 or $self->{active_connections} == 0) {
+	if ($self->{active_connections} == 0) {
 		$cb->();
 	} else {
 		$self->{graceful} = $cb;
@@ -731,9 +731,9 @@ __END__
 
 sub http_server($$&) {
 	my ($lhost,$lport,$reqcb) = @_;
-	
+
 	# TBD
-	
+
 	return $self;
 }
 
@@ -785,16 +785,16 @@ sub __old_stop {
         }
     );
     $s->listen;
-    
+
     ## you may also prefork on N cores:
-    
+
     # fork() ? next : last for (1..$N-1);
-    
+
     ## Of course this is very simple example
     ## don't use such prefork in production
-    
+
     $s->accept;
-    
+
     my $sig = AE::signal INT => sub {
         warn "Stopping server";
         $s->graceful(sub {
@@ -802,12 +802,12 @@ sub __old_stop {
             EV::unloop;
         });
     };
-    
+
     EV::loop;
 
 =head1 DESCRIPTION
 
-AnyEvent::HTTP::Server is a very fast asynchronous HTTP server written in perl. 
+AnyEvent::HTTP::Server is a very fast asynchronous HTTP server written in perl.
 It has been tested in high load production environments and may be considered both fast and stable.
 
 One can easily implement own HTTP daemon with AnyEvent::HTTP::Server and Daemond::Lite module,
@@ -828,12 +828,12 @@ You can handle HTTP request by passing cb parameter to AnyEvent::HTTP::Server->n
 
   my $s = AnyEvent::HTTP::Server->new( host => '0.0.0.0', port => 80, cb => $dispatcher,);
 
-$dispatcher coderef will be called in a list context and it's return value should resolve 
+$dispatcher coderef will be called in a list context and it's return value should resolve
 to true, or request processing will be aborted by AnyEvent:HTTP::Server.
 
-One able to process POST requests by returning specially crafted  hash reference from cb 
-parameter coderef ($dispatcher in out example). This hash must contain the B<form> key, 
-holding a code reference. If B<conetnt-encoding> header is 
+One able to process POST requests by returning specially crafted  hash reference from cb
+parameter coderef ($dispatcher in out example). This hash must contain the B<form> key,
+holding a code reference. If B<conetnt-encoding> header is
 B<application/x-www-form-urlencoded>, form callback will be called.
 
   my $post_action = sub {
@@ -856,7 +856,7 @@ B<application/x-www-form-urlencoded>, form callback will be called.
       };
     } else {
       # GET request processing
-    } 
+    }
 
   };
 
@@ -885,11 +885,11 @@ B<application/x-www-form-urlencoded>, form callback will be called.
     );
 
 
-=head3 host 
+=head3 host
 
   Specify interfaces to bind a listening socket to
   Example: host => '127.0.0.1'
-    
+
 =head3 port
 
   Listen on this port
