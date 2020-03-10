@@ -26,7 +26,7 @@ use AnyEvent::Handle;
 use Scalar::Util 'refaddr', 'weaken';
 use Errno qw(EAGAIN EINTR);
 use AnyEvent::Util qw(WSAEWOULDBLOCK guard AF_INET6 fh_nonblocking);
-use Socket qw(AF_INET AF_UNIX SOCK_STREAM SOCK_DGRAM SOL_SOCKET SO_REUSEADDR IPPROTO_TCP TCP_NODELAY);
+use Socket qw(AF_INET AF_UNIX SOCK_STREAM SOCK_DGRAM SOL_SOCKET SO_REUSEADDR SO_REUSEPORT IPPROTO_TCP TCP_NODELAY);
 
 use Encode ();
 use Compress::Zlib ();
@@ -132,9 +132,13 @@ sub listen:method {
 		socket my $fh, $af, SOCK_STREAM, 0 or Carp::croak "listen/socket: $!";
 
 		if ($af == AF_INET || $af == AF_INET6) {
-			setsockopt $fh, SOL_SOCKET, SO_REUSEADDR, 1
-				or Carp::croak "listen/so_reuseaddr: $!"
-					unless AnyEvent::WIN32; # work around windows bug
+			unless (AnyEvent::WIN32) { # work around windows bug
+				setsockopt $fh, SOL_SOCKET, SO_REUSEADDR, 1
+					or Carp::croak "listen/so_reuseaddr: $!"
+				setsockopt $fh, SOL_SOCKET, SO_REUSEPORT, 1
+					or Carp::croak "listen/so_reuseport: $!"
+			}
+
 
 			unless ($service =~ /^\d*$/) {
 				$service = (getservbyname $service, "tcp")[2]
