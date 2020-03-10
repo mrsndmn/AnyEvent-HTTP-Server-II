@@ -134,9 +134,9 @@ sub listen:method {
 		if ($af == AF_INET || $af == AF_INET6) {
 			unless (AnyEvent::WIN32) { # work around windows bug
 				setsockopt $fh, SOL_SOCKET, SO_REUSEADDR, 1
-					or Carp::croak "listen/so_reuseaddr: $!"
+					or Carp::croak "listen/so_reuseaddr: $!";
 				setsockopt $fh, SOL_SOCKET, SO_REUSEPORT, 1
-					or Carp::croak "listen/so_reuseport: $!"
+					or Carp::croak "listen/so_reuseport: $!";
 			}
 
 
